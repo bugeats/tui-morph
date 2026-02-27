@@ -45,4 +45,4 @@ See [docs/architecture.md](docs/architecture.md) for full design spec.
 
 ## Current Focus
 
-All 9 implementation arcs complete (29 tests). Harness: 6-scene interactive demo (`nix run`). Visual testing in progress.
+All 9 implementation arcs complete (29 tests). Harness: 7-scene interactive demo (`nix run`). Scene 7 ("Morphin") is timer-driven — appends Power Rangers to a list on 900ms intervals, exercising incremental morph diffs independently of user input. The event loop uses `poll`-based dispatch to support both key navigation and timer ticks.

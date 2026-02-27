@@ -1,5 +1,5 @@
 use std::io;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crossterm::event::{self, Event, KeyCode, KeyEventKind};
 use crossterm::terminal::{
@@ -38,31 +38,68 @@ fn run() -> io::Result<()> {
         scene_dashboard,
         scene_about,
     ];
+    let total = scenes.len() + 1;
+    let rangers_idx = scenes.len();
+
     let mut current = 0;
+    let mut ranger_count: usize = 0;
+    let mut last_tick = Instant::now();
+    let tick_interval = Duration::from_millis(900);
 
     terminal.draw(|f| scenes[current](f))?;
 
     loop {
-        if let Event::Key(key) = event::read()? {
-            if key.kind != KeyEventKind::Press {
-                continue;
-            }
+        let timeout = if current == rangers_idx {
+            Duration::from_millis(50)
+        } else {
+            Duration::from_secs(60)
+        };
 
-            match key.code {
-                KeyCode::Char('q') | KeyCode::Esc => break,
-
-                KeyCode::Right | KeyCode::Char(' ') | KeyCode::Enter => {
-                    current = (current + 1) % scenes.len();
+        if event::poll(timeout)? {
+            if let Event::Key(key) = event::read()? {
+                if key.kind != KeyEventKind::Press {
+                    continue;
                 }
 
-                KeyCode::Left => {
-                    current = (current + scenes.len() - 1) % scenes.len();
+                match key.code {
+                    KeyCode::Char('q') | KeyCode::Esc => break,
+
+                    KeyCode::Right | KeyCode::Char(' ') | KeyCode::Enter => {
+                        current = (current + 1) % total;
+                    }
+
+                    KeyCode::Left => {
+                        current = (current + total - 1) % total;
+                    }
+
+                    _ => continue,
                 }
 
-                _ => continue,
+                if current == rangers_idx {
+                    ranger_count = 0;
+                    last_tick = Instant::now();
+                    terminal.draw(|f| scene_rangers(f, ranger_count))?;
+                } else {
+                    terminal.draw(|f| scenes[current](f))?;
+                }
             }
+        } else if current == rangers_idx {
+            let pause = if ranger_count >= RANGERS.len() {
+                tick_interval * 3
+            } else {
+                tick_interval
+            };
 
-            terminal.draw(|f| scenes[current](f))?;
+            if last_tick.elapsed() >= pause {
+                if ranger_count >= RANGERS.len() {
+                    ranger_count = 0;
+                } else {
+                    ranger_count += 1;
+                }
+
+                last_tick = Instant::now();
+                terminal.draw(|f| scene_rangers(f, ranger_count))?;
+            }
         }
     }
 
@@ -101,7 +138,7 @@ fn centered_rect(width_pct: u16, height_pct: u16, area: Rect) -> Rect {
 
 fn scene_inbox(f: &mut Frame) {
     let (hdr, body) = split_header(f.area());
-    header(f, hdr, "1/6 Inbox");
+    header(f, hdr, "1/7 Inbox");
 
     let cols = Layout::horizontal([Constraint::Percentage(35), Constraint::Min(0)]).split(body);
 
@@ -168,7 +205,7 @@ fn scene_inbox(f: &mut Frame) {
 
 fn scene_detail(f: &mut Frame) {
     let (hdr, body) = split_header(f.area());
-    header(f, hdr, "2/6 Detail");
+    header(f, hdr, "2/7 Detail");
 
     let cols = Layout::horizontal([Constraint::Length(4), Constraint::Min(0)]).split(body);
 
@@ -226,7 +263,7 @@ fn scene_detail(f: &mut Frame) {
 
 fn scene_article(f: &mut Frame) {
     let (hdr, body) = split_header(f.area());
-    header(f, hdr, "3/6 Article");
+    header(f, hdr, "3/7 Article");
 
     let text = "Frame-Level Morphing for Terminal UIs\n\
                 =====================================\n\
@@ -280,7 +317,7 @@ fn scene_article(f: &mut Frame) {
 
 fn scene_article_modal(f: &mut Frame) {
     let (hdr, body) = split_header(f.area());
-    header(f, hdr, "4/6 Modal");
+    header(f, hdr, "4/7 Modal");
 
     let bg_text = "Frame-Level Morphing for Terminal UIs\n\
                    =====================================\n\
@@ -331,7 +368,7 @@ fn scene_article_modal(f: &mut Frame) {
 
 fn scene_dashboard(f: &mut Frame) {
     let (hdr, body) = split_header(f.area());
-    header(f, hdr, "5/6 Dashboard");
+    header(f, hdr, "5/7 Dashboard");
 
     let grid_rows =
         Layout::vertical([Constraint::Percentage(50), Constraint::Percentage(50)]).split(body);
@@ -407,7 +444,7 @@ fn scene_dashboard(f: &mut Frame) {
 
 fn scene_about(f: &mut Frame) {
     let (hdr, body) = split_header(f.area());
-    header(f, hdr, "6/6 About");
+    header(f, hdr, "6/7 About");
 
     f.render_widget(
         Block::new().style(Style::new().bg(Color::Rgb(20, 10, 30))),
@@ -448,5 +485,47 @@ fn scene_about(f: &mut Frame) {
             )
             .alignment(Alignment::Center),
         modal_area,
+    );
+}
+
+const RANGERS: &[(&str, &str, &str, Color)] = &[
+    ("Jason", "Red Ranger", "Tyrannosaurus", Color::Rgb(220, 40, 40)),
+    ("Zack", "Black Ranger", "Mastodon", Color::Rgb(200, 200, 210)),
+    ("Billy", "Blue Ranger", "Triceratops", Color::Rgb(60, 120, 255)),
+    ("Trini", "Yellow Ranger", "Sabertooth Tiger", Color::Rgb(255, 220, 40)),
+    ("Kimberly", "Pink Ranger", "Pterodactyl", Color::Rgb(255, 100, 180)),
+    ("Tommy", "Green Ranger", "Dragonzord", Color::Rgb(40, 200, 80)),
+];
+
+fn scene_rangers(f: &mut Frame, count: usize) {
+    let (hdr, body) = split_header(f.area());
+    header(f, hdr, "7/7 Morphin");
+
+    let items: Vec<ListItem> = RANGERS[..count]
+        .iter()
+        .map(|(name, role, zord, color)| {
+            ListItem::new(Line::from(vec![
+                Span::styled(format!("  {name:<12}"), Style::new().fg(*color)),
+                Span::styled(format!("{role:<20}"), Style::new().fg(*color)),
+                Span::styled(format!("  {zord}"), Style::new().fg(Color::DarkGray)),
+            ]))
+        })
+        .collect();
+
+    let title = if count >= RANGERS.len() {
+        " MEGAZORD ASSEMBLED "
+    } else {
+        " IT'S MORPHIN' TIME "
+    };
+
+    f.render_widget(
+        List::new(items).block(
+            Block::bordered().title(title).style(
+                Style::new()
+                    .fg(Color::Rgb(200, 180, 255))
+                    .bg(Color::Rgb(15, 10, 30)),
+            ),
+        ),
+        body,
     );
 }
