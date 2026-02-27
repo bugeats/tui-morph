@@ -45,4 +45,4 @@ See [docs/architecture.md](docs/architecture.md) for full design spec.
 
 ## Current Focus
 
-All 9 implementation arcs complete (29 tests). Library crate: `oklch`, `easing`, `weights`, `plan`, `solver`, `interpolate`, `backend`. Harness: 4-scene interactive demo cycling layouts via `←/→` keys. Run with `nix run` or `nix build && ./result/bin/tui-morph-harness`. Ready for visual testing and negentropy pass.
+All 9 implementation arcs complete (29 tests). Harness: 6-scene interactive demo (`nix run`). Visual testing in progress.

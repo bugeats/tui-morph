@@ -6,7 +6,6 @@ use crate::plan::{
 };
 use crate::weights::MorphWeights;
 
-/// Buffers must have the same dimensions.
 pub fn diff(src: &Buffer, dst: &Buffer, weights: &MorphWeights) -> InterpolationPlan {
     let area = src.area();
     assert_eq!(area, dst.area(), "buffers must have the same dimensions");
@@ -16,8 +15,8 @@ pub fn diff(src: &Buffer, dst: &Buffer, weights: &MorphWeights) -> Interpolation
 
     let mut stable = Vec::new();
     let mut mutating = Vec::new();
-    let mut src_unmatched: Vec<(u16, u16, CellSnapshot)> = Vec::new();
-    let mut dst_unmatched: Vec<(u16, u16, CellSnapshot)> = Vec::new();
+    let mut src_unmatched: Vec<(u16, u16, CellSnapshot, ColorPair)> = Vec::new();
+    let mut dst_unmatched: Vec<(u16, u16, CellSnapshot, ColorPair)> = Vec::new();
 
     for y in area.y..area.y + height {
         for x in area.x..area.x + width {
@@ -38,11 +37,24 @@ pub fn diff(src: &Buffer, dst: &Buffer, weights: &MorphWeights) -> Interpolation
                     bg: sc.bg,
                     modifier: sc.modifier,
                 });
-            } else if is_blank_cell(sc) && !is_blank_cell(dc) {
-                dst_unmatched.push((x, y, CellSnapshot::from_cell(dc)));
-            } else if !is_blank_cell(sc) && is_blank_cell(dc) {
-                src_unmatched.push((x, y, CellSnapshot::from_cell(sc)));
-            } else if !is_blank_cell(sc) && !is_blank_cell(dc) {
+            } else if !has_glyph(sc) && has_glyph(dc) {
+                dst_unmatched.push((x, y, CellSnapshot::from_cell(dc), ColorPair::from_color(sc.bg)));
+                bg_entry(&mut mutating, x, y, sc, dc);
+            } else if has_glyph(sc) && !has_glyph(dc) {
+                src_unmatched.push((x, y, CellSnapshot::from_cell(sc), ColorPair::from_color(dc.bg)));
+                bg_entry(&mut mutating, x, y, sc, dc);
+            } else if !has_glyph(sc) && same_bg {
+                // Both blank, same bg, minor style difference — snap.
+                stable.push(StableCell {
+                    x,
+                    y,
+                    symbol: dc.symbol().to_string(),
+                    fg: dc.fg,
+                    bg: dc.bg,
+                    modifier: dc.modifier,
+                });
+            } else {
+                // Both have glyphs, or both blank with different bg.
                 mutating.push(MutatingCell {
                     x,
                     y,
@@ -54,16 +66,6 @@ pub fn diff(src: &Buffer, dst: &Buffer, weights: &MorphWeights) -> Interpolation
                     dst_bg: ColorPair::from_color(dc.bg),
                     src_modifier: sc.modifier,
                     dst_modifier: dc.modifier,
-                });
-            } else {
-                // Both blank but different style — snap to target.
-                stable.push(StableCell {
-                    x,
-                    y,
-                    symbol: dc.symbol().to_string(),
-                    fg: dc.fg,
-                    bg: dc.bg,
-                    modifier: dc.modifier,
                 });
             }
         }
@@ -83,9 +85,33 @@ pub fn diff(src: &Buffer, dst: &Buffer, weights: &MorphWeights) -> Interpolation
     }
 }
 
-fn is_blank_cell(cell: &ratatui::buffer::Cell) -> bool {
+fn has_glyph(cell: &ratatui::buffer::Cell) -> bool {
     let sym = cell.symbol();
-    sym == " " || sym.is_empty()
+    sym != " " && !sym.is_empty()
+}
+
+/// Background-only mutating entry. Ensures bg interpolates at positions
+/// where a glyph enters or leaves — the glyph itself may get displaced,
+/// leaving this position uncovered by any other plan category.
+fn bg_entry(
+    mutating: &mut Vec<MutatingCell>,
+    x: u16,
+    y: u16,
+    sc: &ratatui::buffer::Cell,
+    dc: &ratatui::buffer::Cell,
+) {
+    mutating.push(MutatingCell {
+        x,
+        y,
+        src_symbol: " ".to_string(),
+        dst_symbol: " ".to_string(),
+        src_fg: ColorPair::from_color(sc.fg),
+        dst_fg: ColorPair::from_color(dc.fg),
+        src_bg: ColorPair::from_color(sc.bg),
+        dst_bg: ColorPair::from_color(dc.bg),
+        src_modifier: ratatui::style::Modifier::empty(),
+        dst_modifier: ratatui::style::Modifier::empty(),
+    });
 }
 
 #[derive(Clone)]
@@ -107,20 +133,21 @@ impl CellSnapshot {
     }
 }
 
-fn orphan_from(x: u16, y: u16, snap: &CellSnapshot) -> OrphanCell {
+fn orphan_from(x: u16, y: u16, snap: &CellSnapshot, counter_bg: ColorPair) -> OrphanCell {
     OrphanCell {
         x,
         y,
         symbol: snap.symbol.clone(),
         fg: snap.fg,
         bg: snap.bg,
+        counter_bg,
         modifier: snap.modifier,
     }
 }
 
 fn solve_unmatched(
-    src: &[(u16, u16, CellSnapshot)],
-    dst: &[(u16, u16, CellSnapshot)],
+    src: &[(u16, u16, CellSnapshot, ColorPair)],
+    dst: &[(u16, u16, CellSnapshot, ColorPair)],
     weights: &MorphWeights,
 ) -> (Vec<DisplacedCell>, Vec<OrphanCell>, Vec<OrphanCell>) {
     if src.is_empty() && dst.is_empty() {
@@ -128,12 +155,18 @@ fn solve_unmatched(
     }
 
     if src.is_empty() {
-        let appearing = dst.iter().map(|(x, y, s)| orphan_from(*x, *y, s)).collect();
+        let appearing = dst
+            .iter()
+            .map(|(x, y, s, cbg)| orphan_from(*x, *y, s, *cbg))
+            .collect();
         return (Vec::new(), appearing, Vec::new());
     }
 
     if dst.is_empty() {
-        let disappearing = src.iter().map(|(x, y, s)| orphan_from(*x, *y, s)).collect();
+        let disappearing = src
+            .iter()
+            .map(|(x, y, s, cbg)| orphan_from(*x, *y, s, *cbg))
+            .collect();
         return (Vec::new(), Vec::new(), disappearing);
     }
 
@@ -141,8 +174,8 @@ fn solve_unmatched(
     let m = dst.len();
     let mut cost = vec![vec![0.0f32; m]; n];
 
-    for (i, (sx, sy, ss)) in src.iter().enumerate() {
-        for (j, (dx, dy, ds)) in dst.iter().enumerate() {
+    for (i, (sx, sy, ss, _)) in src.iter().enumerate() {
+        for (j, (dx, dy, ds, _)) in dst.iter().enumerate() {
             cost[i][j] = cell_cost(*sx, *sy, ss, *dx, *dy, ds, weights);
         }
     }
@@ -162,8 +195,8 @@ fn solve_unmatched(
     for (i, matched_j) in assignment.iter().enumerate() {
         match matched_j {
             Some(j) if cost[i][*j] <= threshold => {
-                let (sx, sy, ss) = &src[i];
-                let (dx, dy, ds) = &dst[*j];
+                let (sx, sy, ss, _) = &src[i];
+                let (dx, dy, ds, _) = &dst[*j];
 
                 displaced.push(DisplacedCell {
                     src_x: *sx,
@@ -184,15 +217,15 @@ fn solve_unmatched(
             }
 
             _ => {
-                let (x, y, snap) = &src[i];
-                disappearing.push(orphan_from(*x, *y, snap));
+                let (x, y, snap, cbg) = &src[i];
+                disappearing.push(orphan_from(*x, *y, snap, *cbg));
             }
         }
     }
 
-    for (j, (x, y, snap)) in dst.iter().enumerate() {
+    for (j, (x, y, snap, cbg)) in dst.iter().enumerate() {
         if !dst_matched[j] {
-            appearing.push(orphan_from(*x, *y, snap));
+            appearing.push(orphan_from(*x, *y, snap, *cbg));
         }
     }
 
@@ -301,7 +334,6 @@ fn hungarian(cost: &[Vec<f32>], n: usize, m: usize) -> Vec<Option<usize>> {
         }
     }
 
-    // Filter to real (non-padded) assignments.
     let mut result = vec![None; n];
 
     for j in 1..=size {

@@ -13,7 +13,6 @@ pub struct InterpolationPlan {
     pub disappearing: Vec<OrphanCell>,
 }
 
-/// Same position, same content. Pass through unchanged.
 pub struct StableCell {
     pub x: u16,
     pub y: u16,
@@ -23,7 +22,6 @@ pub struct StableCell {
     pub modifier: Modifier,
 }
 
-/// Same position, different content. Interpolate in-place.
 pub struct MutatingCell {
     pub x: u16,
     pub y: u16,
@@ -37,7 +35,6 @@ pub struct MutatingCell {
     pub dst_modifier: Modifier,
 }
 
-/// Content exists in both frames at different positions.
 pub struct DisplacedCell {
     pub src_x: u16,
     pub src_y: u16,
@@ -54,12 +51,16 @@ pub struct DisplacedCell {
 }
 
 /// Exists in only one frame. Fades in (appearing) or out (disappearing).
+///
+/// `counter_bg`: the background at this position in the *other* frame,
+/// so orphan bg can interpolate toward it instead of fading to black.
 pub struct OrphanCell {
     pub x: u16,
     pub y: u16,
     pub symbol: String,
     pub fg: ColorPair,
     pub bg: ColorPair,
+    pub counter_bg: ColorPair,
     pub modifier: Modifier,
 }
 

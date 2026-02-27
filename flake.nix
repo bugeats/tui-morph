@@ -43,6 +43,7 @@
           commonArgs
           // {
             inherit cargoArtifacts;
+            meta.mainProgram = "tui-morph-harness";
           }
         );
       in

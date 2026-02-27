@@ -6,7 +6,7 @@ use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
 };
 use ratatui::prelude::*;
-use ratatui::widgets::{Block, Paragraph};
+use ratatui::widgets::{Block, Clear, List, ListItem, Paragraph, Wrap};
 
 use tui_morph::backend::{MorphBackend, MorphConfig};
 
@@ -30,7 +30,14 @@ fn run() -> io::Result<()> {
     };
     let mut terminal = MorphBackend::wrap(backend, config)?;
 
-    let scenes: &[fn(&mut Frame)] = &[scene_a, scene_b, scene_c, scene_d];
+    let scenes: &[fn(&mut Frame)] = &[
+        scene_inbox,
+        scene_detail,
+        scene_article,
+        scene_article_modal,
+        scene_dashboard,
+        scene_about,
+    ];
     let mut current = 0;
 
     terminal.draw(|f| scenes[current](f))?;
@@ -62,106 +69,319 @@ fn run() -> io::Result<()> {
     Ok(())
 }
 
-fn header(f: &mut Frame, area: Rect) {
+fn header(f: &mut Frame, area: Rect, label: &str) {
+    let text = format!("tui-morph  [</>  cycle]  [q quit]  |  {label}");
+
     f.render_widget(
-        Paragraph::new("tui-morph  [←/→ cycle scenes]  [q quit]")
-            .style(Style::new().fg(Color::DarkGray)),
+        Paragraph::new(text).style(Style::new().fg(Color::DarkGray)),
         area,
     );
 }
 
-fn split_main(area: Rect) -> std::rc::Rc<[Rect]> {
-    Layout::vertical([
-        Constraint::Length(1),
-        Constraint::Min(0),
-    ])
-    .split(area)
+fn split_header(area: Rect) -> (Rect, Rect) {
+    let chunks = Layout::vertical([Constraint::Length(1), Constraint::Min(0)]).split(area);
+    (chunks[0], chunks[1])
 }
 
-fn scene_a(f: &mut Frame) {
-    let chunks = split_main(f.area());
-    header(f, chunks[0]);
-
-    let cols = Layout::horizontal([
-        Constraint::Percentage(40),
-        Constraint::Min(0),
-    ])
-    .split(chunks[1]);
-
-    f.render_widget(
-        Paragraph::new("Hello, world!")
-            .block(Block::bordered().title(" A: Red Left "))
-            .style(Style::new().fg(Color::Rgb(255, 80, 80)).bg(Color::Rgb(40, 0, 0))),
-        cols[0],
-    );
-}
-
-fn scene_b(f: &mut Frame) {
-    let chunks = split_main(f.area());
-    header(f, chunks[0]);
-
-    let cols = Layout::horizontal([
-        Constraint::Min(0),
-        Constraint::Percentage(40),
-    ])
-    .split(chunks[1]);
-
-    f.render_widget(
-        Paragraph::new("Hello, world!")
-            .block(Block::bordered().title(" B: Blue Right "))
-            .style(Style::new().fg(Color::Rgb(80, 120, 255)).bg(Color::Rgb(0, 0, 40))),
-        cols[1],
-    );
-}
-
-fn scene_c(f: &mut Frame) {
-    let chunks = split_main(f.area());
-    header(f, chunks[0]);
-
-    let cols = Layout::horizontal([
-        Constraint::Percentage(50),
-        Constraint::Percentage(50),
-    ])
-    .split(chunks[1]);
-
-    f.render_widget(
-        Paragraph::new("Left panel")
-            .block(Block::bordered().title(" C: Green "))
-            .style(Style::new().fg(Color::Rgb(80, 255, 80)).bg(Color::Rgb(0, 40, 0))),
-        cols[0],
-    );
-
-    f.render_widget(
-        Paragraph::new("Right panel")
-            .block(Block::bordered().title(" Details "))
-            .style(Style::new().fg(Color::Rgb(255, 200, 80)).bg(Color::Rgb(40, 30, 0))),
-        cols[1],
-    );
-}
-
-fn scene_d(f: &mut Frame) {
-    let chunks = split_main(f.area());
-    header(f, chunks[0]);
-
-    let h = Layout::horizontal([
-        Constraint::Percentage(25),
-        Constraint::Percentage(50),
-        Constraint::Percentage(25),
-    ])
-    .split(chunks[1]);
-
+fn centered_rect(width_pct: u16, height_pct: u16, area: Rect) -> Rect {
     let v = Layout::vertical([
-        Constraint::Percentage(25),
-        Constraint::Percentage(50),
-        Constraint::Percentage(25),
+        Constraint::Percentage((100 - height_pct) / 2),
+        Constraint::Percentage(height_pct),
+        Constraint::Percentage((100 - height_pct) / 2),
     ])
-    .split(h[1]);
+    .split(area);
+
+    Layout::horizontal([
+        Constraint::Percentage((100 - width_pct) / 2),
+        Constraint::Percentage(width_pct),
+        Constraint::Percentage((100 - width_pct) / 2),
+    ])
+    .split(v[1])[1]
+}
+
+fn scene_inbox(f: &mut Frame) {
+    let (hdr, body) = split_header(f.area());
+    header(f, hdr, "1/6 Inbox");
+
+    let cols =
+        Layout::horizontal([Constraint::Percentage(35), Constraint::Min(0)]).split(body);
+
+    let messages: &[(&str, &str, bool)] = &[
+        ("* Deploy v2.4.1", "ops-bot", true),
+        ("  Review: morph solver", "chadwick", false),
+        ("  Oklch edge cases", "color-team", false),
+        ("  Weekly standup notes", "team", false),
+        ("  Flake input update", "nix-bot", false),
+        ("  Performance regression", "ci", false),
+        ("  License audit results", "legal-bot", false),
+    ];
+
+    let items: Vec<ListItem> = messages
+        .iter()
+        .map(|(subject, from, selected)| {
+            let style = if *selected {
+                Style::new()
+                    .fg(Color::Rgb(255, 255, 255))
+                    .bg(Color::Rgb(40, 60, 120))
+            } else {
+                Style::new().fg(Color::Rgb(180, 180, 200))
+            };
+
+            ListItem::new(Line::from(vec![
+                Span::styled(*subject, style),
+                Span::styled(format!("  {from}"), Style::new().fg(Color::DarkGray)),
+            ]))
+        })
+        .collect();
 
     f.render_widget(
-        Paragraph::new("Centered content\nwith multiple lines")
-            .block(Block::bordered().title(" D: Purple Center "))
-            .style(Style::new().fg(Color::Rgb(200, 80, 255)).bg(Color::Rgb(30, 0, 40)))
+        List::new(items).block(
+            Block::bordered()
+                .title(" Inbox ")
+                .style(Style::new().fg(Color::Rgb(100, 140, 255)).bg(Color::Rgb(15, 15, 30))),
+        ),
+        cols[0],
+    );
+
+    let preview = "Deploy v2.4.1 completed successfully.\n\
+                   \n\
+                   Changes:\n\
+                     - Morph backend: transition timing fix\n\
+                     - Solver: reduced allocation in hot path\n\
+                     - Harness: added list and modal scenes\n\
+                   \n\
+                   All checks passed. Merged to main.";
+
+    f.render_widget(
+        Paragraph::new(preview)
+            .block(Block::bordered().title(" Preview "))
+            .style(Style::new().fg(Color::Rgb(200, 200, 220)).bg(Color::Rgb(15, 15, 30)))
+            .wrap(Wrap { trim: false }),
+        cols[1],
+    );
+}
+
+fn scene_detail(f: &mut Frame) {
+    let (hdr, body) = split_header(f.area());
+    header(f, hdr, "2/6 Detail");
+
+    let cols =
+        Layout::horizontal([Constraint::Length(4), Constraint::Min(0)]).split(body);
+
+    let indicators: Vec<ListItem> = std::iter::once(
+        ListItem::new("*").style(Style::new().fg(Color::Rgb(100, 140, 255))),
+    )
+    .chain((0..6).map(|_| ListItem::new(" ").style(Style::new().fg(Color::DarkGray))))
+    .collect();
+
+    f.render_widget(
+        List::new(indicators)
+            .block(Block::bordered().style(Style::new().bg(Color::Rgb(15, 15, 30)))),
+        cols[0],
+    );
+
+    let detail = "From: ops-bot <ops@deploy.internal>\n\
+                  Date: 2026-02-26 14:32 UTC\n\
+                  Subject: Deploy v2.4.1\n\
+                  \n\
+                  -----------------------------------------------\n\
+                  \n\
+                  Deploy v2.4.1 completed successfully.\n\
+                  \n\
+                  ## Changes\n\
+                  \n\
+                    Morph backend: transition timing fix\n\
+                    The tick loop now properly handles sub-ms\n\
+                    frame intervals on high-refresh displays.\n\
+                  \n\
+                    Solver: reduced allocation in hot path\n\
+                    Cost matrix is now stack-allocated for diffs\n\
+                    under 256 displaced cells. 40% reduction in\n\
+                    allocation pressure during transitions.\n\
+                  \n\
+                    Harness: added list and modal scenes\n\
+                    New demo scenes exercise List, scrolling\n\
+                    Paragraph, and modal overlay patterns.\n\
+                  \n\
+                  ## Status\n\
+                  \n\
+                  All 29 tests passed. Clippy clean. No warnings.\n\
+                  Merged to main via fast-forward.";
+
+    f.render_widget(
+        Paragraph::new(detail)
+            .block(Block::bordered().title(" Deploy v2.4.1 "))
+            .style(Style::new().fg(Color::Rgb(200, 210, 230)).bg(Color::Rgb(15, 15, 30)))
+            .wrap(Wrap { trim: false }),
+        cols[1],
+    );
+}
+
+fn scene_article(f: &mut Frame) {
+    let (hdr, body) = split_header(f.area());
+    header(f, hdr, "3/6 Article");
+
+    let text = "Frame-Level Morphing for Terminal UIs\n\
+                =====================================\n\
+                \n\
+                Terminal user interfaces have traditionally been\n\
+                immediate-mode: each frame is a complete redraw,\n\
+                and transitions between states are instantaneous.\n\
+                The user sees a hard cut from one layout to the\n\
+                next.\n\
+                \n\
+                tui-morph introduces a morphing layer that sits\n\
+                between the application and the terminal backend.\n\
+                It intercepts complete frames, diffs them at the\n\
+                cell level, and produces smooth interpolated\n\
+                transitions.\n\
+                \n\
+                The key insight is that terminal cells carry rich\n\
+                information: position, glyph, foreground color,\n\
+                background color, and text attributes. By operating\n\
+                in Oklch color space, we get perceptually linear\n\
+                interpolation.\n\
+                \n\
+                Cell Classification\n\
+                -------------------\n\
+                \n\
+                The solver partitions cells into four categories:\n\
+                \n\
+                  Stable    - same position, same content.\n\
+                  Mutating  - same position, different content.\n\
+                  Displaced - content moved between frames.\n\
+                  Orphan    - exists in only one frame.\n\
+                \n\
+                The displaced-cell assignment uses the Hungarian\n\
+                algorithm to find the minimum-cost matching. The\n\
+                cost function balances spatial distance, glyph\n\
+                similarity, and color distance.";
+
+    f.render_widget(
+        Paragraph::new(text)
+            .block(Block::bordered().title(" Article: Frame-Level Morphing "))
+            .style(Style::new().fg(Color::Rgb(230, 200, 150)).bg(Color::Rgb(30, 25, 10)))
+            .wrap(Wrap { trim: false })
+            .scroll((2, 0)),
+        body,
+    );
+}
+
+fn scene_article_modal(f: &mut Frame) {
+    let (hdr, body) = split_header(f.area());
+    header(f, hdr, "4/6 Modal");
+
+    let bg_text = "Frame-Level Morphing for Terminal UIs\n\
+                   =====================================\n\
+                   \n\
+                   Terminal user interfaces have traditionally been\n\
+                   immediate-mode: each frame is a complete redraw,\n\
+                   and transitions between states are instantaneous.";
+
+    f.render_widget(
+        Paragraph::new(bg_text)
+            .block(Block::bordered().title(" Article "))
+            .style(Style::new().fg(Color::Rgb(80, 70, 50)).bg(Color::Rgb(15, 12, 5)))
+            .wrap(Wrap { trim: false }),
+        body,
+    );
+
+    let modal_area = centered_rect(50, 40, body);
+    f.render_widget(Clear, modal_area);
+
+    let modal_text = "Are you sure you want to continue?\n\
+                      \n\
+                      This will apply the morphing configuration\n\
+                      to all subsequent frame transitions.\n\
+                      \n\
+                      [Enter] Confirm    [Esc] Cancel";
+
+    f.render_widget(
+        Paragraph::new(modal_text)
+            .block(
+                Block::bordered()
+                    .title(" Confirm ")
+                    .border_style(Style::new().fg(Color::Rgb(255, 200, 80))),
+            )
+            .style(Style::new().fg(Color::Rgb(240, 230, 200)).bg(Color::Rgb(40, 35, 20)))
+            .wrap(Wrap { trim: false })
             .alignment(Alignment::Center),
-        v[1],
+        modal_area,
+    );
+}
+
+fn scene_dashboard(f: &mut Frame) {
+    let (hdr, body) = split_header(f.area());
+    header(f, hdr, "5/6 Dashboard");
+
+    let grid_rows = Layout::vertical([Constraint::Percentage(50), Constraint::Percentage(50)])
+        .split(body);
+
+    let quarters = [Constraint::Percentage(25); 4];
+    let top = Layout::horizontal(quarters).split(grid_rows[0]);
+    let bot = Layout::horizontal(quarters).split(grid_rows[1]);
+
+    let panes: &[(&str, &str, Color, Color)] = &[
+        (" CPU ", "87%", Color::Rgb(255, 120, 80), Color::Rgb(40, 15, 10)),
+        (" Memory ", "4.2 / 16 GB", Color::Rgb(80, 200, 255), Color::Rgb(10, 25, 40)),
+        (" Network ", "12 Mbps in\n 3 Mbps out", Color::Rgb(180, 255, 100), Color::Rgb(20, 35, 10)),
+        (" Disk ", "218 / 500 GB", Color::Rgb(255, 200, 80), Color::Rgb(40, 30, 10)),
+        (" Tasks ", "29 passed\n 0 failed", Color::Rgb(100, 255, 180), Color::Rgb(10, 35, 25)),
+        (" Uptime ", "14d 7h 32m", Color::Rgb(200, 160, 255), Color::Rgb(25, 15, 40)),
+        (" Build ", "release\nv0.1.0", Color::Rgb(255, 140, 200), Color::Rgb(40, 15, 30)),
+        (" Alerts ", "0 critical\n2 warnings", Color::Rgb(255, 255, 130), Color::Rgb(35, 35, 10)),
+    ];
+
+    let areas = [top[0], top[1], top[2], top[3], bot[0], bot[1], bot[2], bot[3]];
+
+    for (area, (title, content, fg, bg)) in areas.iter().zip(panes.iter()) {
+        f.render_widget(
+            Paragraph::new(*content)
+                .block(Block::bordered().title(*title))
+                .style(Style::new().fg(*fg).bg(*bg)),
+            *area,
+        );
+    }
+}
+
+fn scene_about(f: &mut Frame) {
+    let (hdr, body) = split_header(f.area());
+    header(f, hdr, "6/6 About");
+
+    f.render_widget(
+        Block::new().style(Style::new().bg(Color::Rgb(20, 10, 30))),
+        body,
+    );
+
+    let modal_area = centered_rect(60, 50, body);
+    f.render_widget(Clear, modal_area);
+
+    let about = "tui-morph v0.1\n\
+                 \n\
+                 Frame-level morphing layer for ratatui.\n\
+                 \n\
+                 Interpolates between discrete terminal\n\
+                 frames using Oklch color space, producing\n\
+                 smooth visual transitions with zero\n\
+                 application-level awareness.\n\
+                 \n\
+                 Features:\n\
+                   - Perceptual color interpolation\n\
+                   - Hungarian cell assignment\n\
+                   - Configurable easing curves\n\
+                   - Weight presets: LIQUID, CRISP, FADE\n\
+                 \n\
+                 Press any key to continue";
+
+    f.render_widget(
+        Paragraph::new(about)
+            .block(
+                Block::bordered()
+                    .title(" About ")
+                    .border_style(Style::new().fg(Color::Rgb(180, 100, 255))),
+            )
+            .style(Style::new().fg(Color::Rgb(220, 200, 240)).bg(Color::Rgb(30, 15, 45)))
+            .alignment(Alignment::Center),
+        modal_area,
     );
 }

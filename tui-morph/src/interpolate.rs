@@ -77,7 +77,7 @@ fn render_appearing(plan: &InterpolationPlan, t: f32, buf: &mut Buffer) {
     for cell in &plan.appearing {
         let factor = t;
         let fg = fade(&cell.fg, factor);
-        let bg = fade(&cell.bg, factor);
+        let bg = lerp_color(&cell.counter_bg, &cell.bg, t);
 
         let visible = cell
             .fg
@@ -85,14 +85,13 @@ fn render_appearing(plan: &InterpolationPlan, t: f32, buf: &mut Buffer) {
             .map(|lch| lch.l * factor >= LEGIBILITY_THRESHOLD)
             .unwrap_or(factor >= 0.5);
 
-        if !visible {
-            continue;
-        }
-
         let target = &mut buf[(cell.x, cell.y)];
-        target.set_symbol(&cell.symbol);
         target.set_style(Style::new().fg(fg).bg(bg));
-        target.modifier = cell.modifier;
+
+        if visible {
+            target.set_symbol(&cell.symbol);
+            target.modifier = cell.modifier;
+        }
     }
 }
 
@@ -100,7 +99,7 @@ fn render_disappearing(plan: &InterpolationPlan, t: f32, buf: &mut Buffer) {
     for cell in &plan.disappearing {
         let factor = 1.0 - t;
         let fg = fade(&cell.fg, factor);
-        let bg = fade(&cell.bg, factor);
+        let bg = lerp_color(&cell.bg, &cell.counter_bg, t);
 
         let visible = cell
             .fg
@@ -108,14 +107,13 @@ fn render_disappearing(plan: &InterpolationPlan, t: f32, buf: &mut Buffer) {
             .map(|lch| lch.l * factor >= LEGIBILITY_THRESHOLD)
             .unwrap_or(factor >= 0.5);
 
-        if !visible {
-            continue;
-        }
-
         let target = &mut buf[(cell.x, cell.y)];
-        target.set_symbol(&cell.symbol);
         target.set_style(Style::new().fg(fg).bg(bg));
-        target.modifier = cell.modifier;
+
+        if visible {
+            target.set_symbol(&cell.symbol);
+            target.modifier = cell.modifier;
+        }
     }
 }
 
