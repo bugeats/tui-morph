@@ -1,0 +1,9 @@
+[package]
+name = "tui-morph-harness"
+version.workspace = true
+edition = "2024"
+
+[dependencies]
+crossterm = "0.28"
+ratatui = "0.29"
+tui-morph = { path = "../tui-morph" }
