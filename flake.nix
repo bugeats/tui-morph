@@ -66,6 +66,11 @@
 
         packages.default = tui-morph;
 
+        apps.default = flake-utils.lib.mkApp {
+          drv = tui-morph;
+          name = "tui-morph-harness";
+        };
+
         devShells.default = craneLib.devShell {
           packages = [
             pkgs.cargo-watch
