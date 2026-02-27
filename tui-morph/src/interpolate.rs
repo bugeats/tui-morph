@@ -142,11 +142,7 @@ fn pick_symbol<'a>(src: &'a str, dst: &'a str, src_fg: &ColorPair, t: f32) -> &'
         })
         .unwrap_or(0.5);
 
-    if t < threshold {
-        src
-    } else {
-        dst
-    }
+    if t < threshold { src } else { dst }
 }
 
 /// Scale lightness by `factor` (0.0 = black, 1.0 = original).
@@ -193,8 +189,16 @@ mod tests {
 
     #[test]
     fn at_zero_matches_source() {
-        let src = make_buffer(3, 1, &[((0, 0), "A", Color::Red), ((1, 0), "B", Color::Blue)]);
-        let dst = make_buffer(3, 1, &[((0, 0), "X", Color::Green), ((1, 0), "Y", Color::White)]);
+        let src = make_buffer(
+            3,
+            1,
+            &[((0, 0), "A", Color::Red), ((1, 0), "B", Color::Blue)],
+        );
+        let dst = make_buffer(
+            3,
+            1,
+            &[((0, 0), "X", Color::Green), ((1, 0), "Y", Color::White)],
+        );
         let plan = solver::diff(&src, &dst, &MorphWeights::CRISP);
         let result = render(&plan, 0.0);
 
@@ -204,8 +208,16 @@ mod tests {
 
     #[test]
     fn at_one_matches_target() {
-        let src = make_buffer(3, 1, &[((0, 0), "A", Color::Red), ((1, 0), "B", Color::Blue)]);
-        let dst = make_buffer(3, 1, &[((0, 0), "X", Color::Green), ((1, 0), "Y", Color::White)]);
+        let src = make_buffer(
+            3,
+            1,
+            &[((0, 0), "A", Color::Red), ((1, 0), "B", Color::Blue)],
+        );
+        let dst = make_buffer(
+            3,
+            1,
+            &[((0, 0), "X", Color::Green), ((1, 0), "Y", Color::White)],
+        );
         let plan = solver::diff(&src, &dst, &MorphWeights::CRISP);
         let result = render(&plan, 1.0);
 
@@ -237,7 +249,10 @@ mod tests {
         let fg = result[(0, 0)].fg;
         match fg {
             Color::Rgb(r, _, b) => {
-                assert!(r < 255 && b < 255, "expected interpolated color, got {fg:?}");
+                assert!(
+                    r < 255 && b < 255,
+                    "expected interpolated color, got {fg:?}"
+                );
             }
             _ => panic!("expected Rgb color"),
         }

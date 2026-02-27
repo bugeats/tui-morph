@@ -38,10 +38,20 @@ pub fn diff(src: &Buffer, dst: &Buffer, weights: &MorphWeights) -> Interpolation
                     modifier: sc.modifier,
                 });
             } else if !has_glyph(sc) && has_glyph(dc) {
-                dst_unmatched.push((x, y, CellSnapshot::from_cell(dc), ColorPair::from_color(sc.bg)));
+                dst_unmatched.push((
+                    x,
+                    y,
+                    CellSnapshot::from_cell(dc),
+                    ColorPair::from_color(sc.bg),
+                ));
                 bg_entry(&mut mutating, x, y, sc, dc);
             } else if has_glyph(sc) && !has_glyph(dc) {
-                src_unmatched.push((x, y, CellSnapshot::from_cell(sc), ColorPair::from_color(dc.bg)));
+                src_unmatched.push((
+                    x,
+                    y,
+                    CellSnapshot::from_cell(sc),
+                    ColorPair::from_color(dc.bg),
+                ));
                 bg_entry(&mut mutating, x, y, sc, dc);
             } else if !has_glyph(sc) && same_bg {
                 // Both blank, same bg, minor style difference — snap.
@@ -370,8 +380,16 @@ mod tests {
 
     #[test]
     fn identical_buffers_all_stable() {
-        let a = make_buffer(3, 1, &[((0, 0), "A", Color::Red), ((1, 0), "B", Color::Blue)]);
-        let b = make_buffer(3, 1, &[((0, 0), "A", Color::Red), ((1, 0), "B", Color::Blue)]);
+        let a = make_buffer(
+            3,
+            1,
+            &[((0, 0), "A", Color::Red), ((1, 0), "B", Color::Blue)],
+        );
+        let b = make_buffer(
+            3,
+            1,
+            &[((0, 0), "A", Color::Red), ((1, 0), "B", Color::Blue)],
+        );
         let plan = diff(&a, &b, &MorphWeights::LIQUID);
 
         assert_eq!(plan.stable.len(), 3);

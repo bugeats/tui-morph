@@ -75,11 +75,7 @@ fn oklab_to_linear_rgb(lab: Oklab) -> LinRgb {
 fn oklab_to_oklch(lab: Oklab) -> Oklch {
     let c = (lab.a * lab.a + lab.b * lab.b).sqrt();
 
-    let h = if c < 1e-8 {
-        0.0
-    } else {
-        lab.b.atan2(lab.a)
-    };
+    let h = if c < 1e-8 { 0.0 } else { lab.b.atan2(lab.a) };
 
     Oklch { l: lab.l, c, h }
 }

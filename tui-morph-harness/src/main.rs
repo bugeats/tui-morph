@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use crossterm::event::{self, Event, KeyCode, KeyEventKind};
 use crossterm::terminal::{
-    disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
+    EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
 };
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Clear, List, ListItem, Paragraph, Wrap};
@@ -25,7 +25,7 @@ fn main() -> io::Result<()> {
 fn run() -> io::Result<()> {
     let backend = CrosstermBackend::new(io::stdout());
     let config = MorphConfig {
-        duration: Duration::from_millis(300),
+        duration: Duration::from_millis(500),
         ..MorphConfig::default()
     };
     let mut terminal = MorphBackend::wrap(backend, config)?;
@@ -103,8 +103,7 @@ fn scene_inbox(f: &mut Frame) {
     let (hdr, body) = split_header(f.area());
     header(f, hdr, "1/6 Inbox");
 
-    let cols =
-        Layout::horizontal([Constraint::Percentage(35), Constraint::Min(0)]).split(body);
+    let cols = Layout::horizontal([Constraint::Percentage(35), Constraint::Min(0)]).split(body);
 
     let messages: &[(&str, &str, bool)] = &[
         ("* Deploy v2.4.1", "ops-bot", true),
@@ -136,9 +135,11 @@ fn scene_inbox(f: &mut Frame) {
 
     f.render_widget(
         List::new(items).block(
-            Block::bordered()
-                .title(" Inbox ")
-                .style(Style::new().fg(Color::Rgb(100, 140, 255)).bg(Color::Rgb(15, 15, 30))),
+            Block::bordered().title(" Inbox ").style(
+                Style::new()
+                    .fg(Color::Rgb(100, 140, 255))
+                    .bg(Color::Rgb(15, 15, 30)),
+            ),
         ),
         cols[0],
     );
@@ -155,7 +156,11 @@ fn scene_inbox(f: &mut Frame) {
     f.render_widget(
         Paragraph::new(preview)
             .block(Block::bordered().title(" Preview "))
-            .style(Style::new().fg(Color::Rgb(200, 200, 220)).bg(Color::Rgb(15, 15, 30)))
+            .style(
+                Style::new()
+                    .fg(Color::Rgb(200, 200, 220))
+                    .bg(Color::Rgb(15, 15, 30)),
+            )
             .wrap(Wrap { trim: false }),
         cols[1],
     );
@@ -165,14 +170,12 @@ fn scene_detail(f: &mut Frame) {
     let (hdr, body) = split_header(f.area());
     header(f, hdr, "2/6 Detail");
 
-    let cols =
-        Layout::horizontal([Constraint::Length(4), Constraint::Min(0)]).split(body);
+    let cols = Layout::horizontal([Constraint::Length(4), Constraint::Min(0)]).split(body);
 
-    let indicators: Vec<ListItem> = std::iter::once(
-        ListItem::new("*").style(Style::new().fg(Color::Rgb(100, 140, 255))),
-    )
-    .chain((0..6).map(|_| ListItem::new(" ").style(Style::new().fg(Color::DarkGray))))
-    .collect();
+    let indicators: Vec<ListItem> =
+        std::iter::once(ListItem::new("*").style(Style::new().fg(Color::Rgb(100, 140, 255))))
+            .chain((0..6).map(|_| ListItem::new(" ").style(Style::new().fg(Color::DarkGray))))
+            .collect();
 
     f.render_widget(
         List::new(indicators)
@@ -211,7 +214,11 @@ fn scene_detail(f: &mut Frame) {
     f.render_widget(
         Paragraph::new(detail)
             .block(Block::bordered().title(" Deploy v2.4.1 "))
-            .style(Style::new().fg(Color::Rgb(200, 210, 230)).bg(Color::Rgb(15, 15, 30)))
+            .style(
+                Style::new()
+                    .fg(Color::Rgb(200, 210, 230))
+                    .bg(Color::Rgb(15, 15, 30)),
+            )
             .wrap(Wrap { trim: false }),
         cols[1],
     );
@@ -260,7 +267,11 @@ fn scene_article(f: &mut Frame) {
     f.render_widget(
         Paragraph::new(text)
             .block(Block::bordered().title(" Article: Frame-Level Morphing "))
-            .style(Style::new().fg(Color::Rgb(230, 200, 150)).bg(Color::Rgb(30, 25, 10)))
+            .style(
+                Style::new()
+                    .fg(Color::Rgb(230, 200, 150))
+                    .bg(Color::Rgb(30, 25, 10)),
+            )
             .wrap(Wrap { trim: false })
             .scroll((2, 0)),
         body,
@@ -281,7 +292,11 @@ fn scene_article_modal(f: &mut Frame) {
     f.render_widget(
         Paragraph::new(bg_text)
             .block(Block::bordered().title(" Article "))
-            .style(Style::new().fg(Color::Rgb(80, 70, 50)).bg(Color::Rgb(15, 12, 5)))
+            .style(
+                Style::new()
+                    .fg(Color::Rgb(80, 70, 50))
+                    .bg(Color::Rgb(15, 12, 5)),
+            )
             .wrap(Wrap { trim: false }),
         body,
     );
@@ -303,7 +318,11 @@ fn scene_article_modal(f: &mut Frame) {
                     .title(" Confirm ")
                     .border_style(Style::new().fg(Color::Rgb(255, 200, 80))),
             )
-            .style(Style::new().fg(Color::Rgb(240, 230, 200)).bg(Color::Rgb(40, 35, 20)))
+            .style(
+                Style::new()
+                    .fg(Color::Rgb(240, 230, 200))
+                    .bg(Color::Rgb(40, 35, 20)),
+            )
             .wrap(Wrap { trim: false })
             .alignment(Alignment::Center),
         modal_area,
@@ -314,25 +333,67 @@ fn scene_dashboard(f: &mut Frame) {
     let (hdr, body) = split_header(f.area());
     header(f, hdr, "5/6 Dashboard");
 
-    let grid_rows = Layout::vertical([Constraint::Percentage(50), Constraint::Percentage(50)])
-        .split(body);
+    let grid_rows =
+        Layout::vertical([Constraint::Percentage(50), Constraint::Percentage(50)]).split(body);
 
     let quarters = [Constraint::Percentage(25); 4];
     let top = Layout::horizontal(quarters).split(grid_rows[0]);
     let bot = Layout::horizontal(quarters).split(grid_rows[1]);
 
     let panes: &[(&str, &str, Color, Color)] = &[
-        (" CPU ", "87%", Color::Rgb(255, 120, 80), Color::Rgb(40, 15, 10)),
-        (" Memory ", "4.2 / 16 GB", Color::Rgb(80, 200, 255), Color::Rgb(10, 25, 40)),
-        (" Network ", "12 Mbps in\n 3 Mbps out", Color::Rgb(180, 255, 100), Color::Rgb(20, 35, 10)),
-        (" Disk ", "218 / 500 GB", Color::Rgb(255, 200, 80), Color::Rgb(40, 30, 10)),
-        (" Tasks ", "29 passed\n 0 failed", Color::Rgb(100, 255, 180), Color::Rgb(10, 35, 25)),
-        (" Uptime ", "14d 7h 32m", Color::Rgb(200, 160, 255), Color::Rgb(25, 15, 40)),
-        (" Build ", "release\nv0.1.0", Color::Rgb(255, 140, 200), Color::Rgb(40, 15, 30)),
-        (" Alerts ", "0 critical\n2 warnings", Color::Rgb(255, 255, 130), Color::Rgb(35, 35, 10)),
+        (
+            " CPU ",
+            "87%",
+            Color::Rgb(255, 120, 80),
+            Color::Rgb(40, 15, 10),
+        ),
+        (
+            " Memory ",
+            "4.2 / 16 GB",
+            Color::Rgb(80, 200, 255),
+            Color::Rgb(10, 25, 40),
+        ),
+        (
+            " Network ",
+            "12 Mbps in\n 3 Mbps out",
+            Color::Rgb(180, 255, 100),
+            Color::Rgb(20, 35, 10),
+        ),
+        (
+            " Disk ",
+            "218 / 500 GB",
+            Color::Rgb(255, 200, 80),
+            Color::Rgb(40, 30, 10),
+        ),
+        (
+            " Tasks ",
+            "29 passed\n 0 failed",
+            Color::Rgb(100, 255, 180),
+            Color::Rgb(10, 35, 25),
+        ),
+        (
+            " Uptime ",
+            "14d 7h 32m",
+            Color::Rgb(200, 160, 255),
+            Color::Rgb(25, 15, 40),
+        ),
+        (
+            " Build ",
+            "release\nv0.1.0",
+            Color::Rgb(255, 140, 200),
+            Color::Rgb(40, 15, 30),
+        ),
+        (
+            " Alerts ",
+            "0 critical\n2 warnings",
+            Color::Rgb(255, 255, 130),
+            Color::Rgb(35, 35, 10),
+        ),
     ];
 
-    let areas = [top[0], top[1], top[2], top[3], bot[0], bot[1], bot[2], bot[3]];
+    let areas = [
+        top[0], top[1], top[2], top[3], bot[0], bot[1], bot[2], bot[3],
+    ];
 
     for (area, (title, content, fg, bg)) in areas.iter().zip(panes.iter()) {
         f.render_widget(
@@ -380,7 +441,11 @@ fn scene_about(f: &mut Frame) {
                     .title(" About ")
                     .border_style(Style::new().fg(Color::Rgb(180, 100, 255))),
             )
-            .style(Style::new().fg(Color::Rgb(220, 200, 240)).bg(Color::Rgb(30, 15, 45)))
+            .style(
+                Style::new()
+                    .fg(Color::Rgb(220, 200, 240))
+                    .bg(Color::Rgb(30, 15, 45)),
+            )
             .alignment(Alignment::Center),
         modal_area,
     );

@@ -1,10 +1,10 @@
 use std::io;
 use std::time::{Duration, Instant};
 
+use ratatui::Terminal;
 use ratatui::backend::Backend;
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Rect, Size};
-use ratatui::Terminal;
 
 use crate::easing;
 use crate::interpolate;
@@ -21,7 +21,7 @@ pub struct MorphConfig {
 impl Default for MorphConfig {
     fn default() -> Self {
         Self {
-            weights: MorphWeights::LIQUID,
+            weights: MorphWeights::CRISP,
             duration: Duration::from_millis(200),
             easing: easing::ease_in_out,
             fps: 60,
@@ -92,7 +92,9 @@ impl<B: Backend> MorphBackend<B> {
                 break;
             }
 
-            let next_tick = start + frame_interval * (elapsed.as_secs_f32() / frame_interval.as_secs_f32()).ceil() as u32;
+            let next_tick = start
+                + frame_interval
+                    * (elapsed.as_secs_f32() / frame_interval.as_secs_f32()).ceil() as u32;
             let now = Instant::now();
 
             if next_tick > now {
